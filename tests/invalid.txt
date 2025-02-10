@@ -1,0 +1,5 @@
+/"abc/ -- missing close quote
+/abc/ -- literals need to be quoted
+/("ok) )/ -- unbalanced parens
+/[abc]^/ -- ^ unexpected 
+/!("abc" & [a-z])/ -- cannot nest & inside !

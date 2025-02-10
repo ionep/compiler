@@ -1,0 +1,8 @@
+/"this is a literal"/ 
+/"unicode literal" "🌶"*/
+/"%x7;%x0;/
+/"h"[aeiou]+/
+/[+-]? ("0" | [1-9][0-9]+)/
+/[+-]? ("0" | ${NonZeroDigit}${Digit}+)/
+/${Filename} & .+ ".txt"/
+const s_re = /[a-z]/
