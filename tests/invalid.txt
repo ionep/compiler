@@ -1,3 +1,4 @@
+/"asds%asdsa"/
 /"abc/ -- missing close quote
 /abc/ -- literals need to be quoted
 /("ok) )/ -- unbalanced parens

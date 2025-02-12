@@ -17,14 +17,13 @@ struct errorCode code[] = {
     {0,"No error"},
     {1,"Error using const format or missing SLASH"},
     {2, "Unexpected ^, &, *, +, ? or |"},
-    {3, "Unmatched quotes, braces (, [ or { or unexpected ^"}
-};
-int errID=0;
+    {3, "Unmatched quotes, braces (, [ or { OR unexpected ^, % or unicode"}
+}; // couldn't fix this to show different codes due to R/R conflict. So, use last for default as of now
+int errID=0; 
 
 // Error handling
 void yyerror(const char *);
 %}
-%error-verbose
 
 
 %union{
@@ -53,7 +52,6 @@ line: system
     | line system
     | error { yyerror("Syntax error"); yyerrok; return 1;};
 
-// 
 system: SLASH rootregex SLASH { lineCount++; printf("/%s/\n",$2); }
     | definition system{ lineCount++; printf("%s",$1); };
 
@@ -71,11 +69,10 @@ seq: regex { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1);  }
     | alt { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); };
 
 regex: term { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); }
-    | repeat { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); };
+    | repeat { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); }; // repeat has higher precedence than seq
 
 // one or more regex | regex
-/* alt: seq PIPE regex { $$=malloc(strlen($1)+strlen($3)+4); sprintf($$,"%s | %s",$1,$3); }; */
-alt: seq PIPE regex { $$=malloc(strlen($1)+strlen($3)+6); sprintf($$,"$%s | %s$",$1,$3); };
+alt: seq PIPE regex { $$=malloc(strlen($1)+strlen($3)+4); sprintf($$,"$%s | %s$",$1,$3); };
 
 repeat: regex ASTRK { $$ = malloc(strlen($1)+ 2); sprintf($$,"%s*",$1); }
     | regex PLUS { $$ = malloc(strlen($1)+ 2); sprintf($$,"%s+",$1);  }
@@ -99,18 +96,19 @@ multiregterm: regterm { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1);  };
          };
 
 regterm: anychar { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1); }
-    | ESC RBIG { $$=malloc(2); sprintf($$,"]"); }
-    | QUOTE { $$=malloc(3); sprintf($$,"\""); };
+    | ESC RBIG { $$=malloc(2); sprintf($$,"]"); } // used \] to use ] or can use unicode but question mentions only for literals
+    | QUOTE { $$=malloc(3); sprintf($$,"\""); }
+    | PERCENT { $$=malloc(2); sprintf($$,"%");}; // added which are not inside anychar
 
 multiliteral: literal { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1); }
     | multiliteral literal { $$=malloc(strlen($1)+strlen($2)+1); sprintf($$,"%s%s",$1,$2); };
 
 literal: anychar { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1); }
-    | ESC QUOTE { $$=malloc(strlen($2)+2); sprintf($$,"\\%s",$2);}
-    | RBIG { $$=malloc(2); sprintf($$,"]");};
+    /* | ESC QUOTE { $$=malloc(strlen($2)+2); sprintf($$,"\\\"",$2);} */ //this works too \" but used unicode
+    | RBIG { $$=malloc(2); sprintf($$,"]");}
+    | UNICODE { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1); }; //can put in anychar to support unicode inside range
 
-anychar: UNICODE { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1); }
-    | PLUS { $$=malloc(2); sprintf($$,"+"); }
+anychar: PLUS { $$=malloc(2); sprintf($$,"+"); }
     | MINUS { $$=malloc(2); sprintf($$,"-"); }
     | CONST { $$=malloc(5); sprintf($$,"const"); }
     | EQUAL { $$=malloc(2); sprintf($$,"="); }
@@ -120,7 +118,6 @@ anychar: UNICODE { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1); }
     | RPAR { $$=malloc(2); sprintf($$,")");}
     | PIPE { $$=malloc(2); sprintf($$,"|");}
     | QUES { $$=malloc(2); sprintf($$,"?");}
-    | PERCENT { $$=malloc(2); sprintf($$,"%");}
     | LBIG { $$=malloc(2); sprintf($$,"[");}
     | ESC ESC { $$=malloc(3); sprintf($$,"\\");}
     | ASTRK { $$=malloc(2); sprintf($$,"*");}

@@ -29,11 +29,9 @@
     return RPAR; 
 }
 "+" { 
-    // printf("plus\n");
     return PLUS; 
 }
 "|" {
-    // printf("pipe\n");
     return PIPE;
 }
 "\\" {
@@ -43,20 +41,16 @@
     return ASTRK; 
 }
 "?" {
-    // printf("question\n");
     return QUES;
 }
 "\"" {
-    // printf("Quote\n");
     return QUOTE;
 }
 
 "[" {
-    // printf("lbig\n");
     return LBIG;
 }
 "]" {
-    // printf("rbig\n");
     return RBIG;
 }
 "^" {
@@ -72,11 +66,9 @@
     return RCUR;
 }
 "-" {
-    // printf("minus\n");
     return MINUS;
 }
 [a-zA-Z0-9_]+ {
-    // printf("%s\n",yytext);
     yylval.str = strdup(yytext);
     return ID;
 }
@@ -84,17 +76,16 @@
     // Ignore whitespace
 }
 "%"x[0-9]+";" { 
-    // printf("Unicode");
     yylval.str = strdup(yytext);
     return UNICODE; 
 }
 "%" {
-    // printf("Percent");
     return PERCENT;
 }
 . { 
     // printf("Invalid character '%s' at line %d\n", yytext, yylineno);
     // exit(1); 
+    //select all other characters too which can exist inside "" or []
     yylval.str = strdup(yytext);
     return OTHERCHAR;
 }

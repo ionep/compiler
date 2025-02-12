@@ -1,0 +1,8 @@
+lexer/*.c
+lexer/*.o
+parser/*.output
+parser/*.c
+parser/*.h
+parser/*.o
+
+parse.exe

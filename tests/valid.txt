@@ -13,3 +13,5 @@ const s_re = /[a-z]/
 /"a" "b"| "c"/
 /"a" | "b" "c"/
 /"asd"* "qwe" | "ppp"/
+/"asdsad%x022;asdsad"/
+/["-\]]/

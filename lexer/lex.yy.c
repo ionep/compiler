@@ -820,105 +820,97 @@ case 9:
 YY_RULE_SETUP
 #line 31 "lexer.l"
 { 
-    // printf("plus\n");
     return PLUS; 
 }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 35 "lexer.l"
+#line 34 "lexer.l"
 {
-    // printf("pipe\n");
     return PIPE;
 }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 39 "lexer.l"
+#line 37 "lexer.l"
 {
     return ESC;
 }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 42 "lexer.l"
+#line 40 "lexer.l"
 { 
     return ASTRK; 
 }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 45 "lexer.l"
+#line 43 "lexer.l"
 {
-    // printf("question\n");
     return QUES;
 }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 49 "lexer.l"
+#line 46 "lexer.l"
 {
-    // printf("Quote\n");
     return QUOTE;
 }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 54 "lexer.l"
+#line 50 "lexer.l"
 {
-    // printf("lbig\n");
     return LBIG;
 }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 58 "lexer.l"
+#line 53 "lexer.l"
 {
-    // printf("rbig\n");
     return RBIG;
 }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 62 "lexer.l"
+#line 56 "lexer.l"
 {
     return CAP;
 }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 65 "lexer.l"
+#line 59 "lexer.l"
 {
     return WILD;
 }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 68 "lexer.l"
+#line 62 "lexer.l"
 {
     return LCUR;
 }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 71 "lexer.l"
+#line 65 "lexer.l"
 {
     return RCUR;
 }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 74 "lexer.l"
+#line 68 "lexer.l"
 {
-    // printf("minus\n");
     return MINUS;
 }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 78 "lexer.l"
+#line 71 "lexer.l"
 {
-    // printf("%s\n",yytext);
     yylval.str = strdup(yytext);
     return ID;
 }
@@ -926,40 +918,39 @@ YY_RULE_SETUP
 case 23:
 /* rule 23 can match eol */
 YY_RULE_SETUP
-#line 83 "lexer.l"
+#line 75 "lexer.l"
 { 
     // Ignore whitespace
 }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 86 "lexer.l"
+#line 78 "lexer.l"
 { 
-    // printf("Unicode");
     yylval.str = strdup(yytext);
     return UNICODE; 
 }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 91 "lexer.l"
+#line 82 "lexer.l"
 {
-    // printf("Percent");
     return PERCENT;
 }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 95 "lexer.l"
+#line 85 "lexer.l"
 { 
     // printf("Invalid character '%s' at line %d\n", yytext, yylineno);
     // exit(1); 
+    //select all other characters too which can exist inside "" or []
     yylval.str = strdup(yytext);
     return OTHERCHAR;
 }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 101 "lexer.l"
+#line 92 "lexer.l"
 {
     // return 0 only when the file ends so that we handle multiple regex
     return 0;
@@ -967,10 +958,10 @@ case YY_STATE_EOF(INITIAL):
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 105 "lexer.l"
+#line 96 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 974 "lex.yy.c"
+#line 965 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1966,7 +1957,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 105 "lexer.l"
+#line 96 "lexer.l"
 
 
 
