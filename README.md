@@ -1,3 +1,24 @@
+# Regex Checker
+
+This project implements a basic calculator using Bison and Flex.
+
+## 📝 How It Works
+- **Flex (`lexer.l`)** tokenizes the input.
+- **Bison (`parser.y`)** parses expressions and evaluates them.
+
+## 📂 File Structure
+- `lexer.l` - Lexical analyzer (token definitions)
+- `parser.y` - Syntax analyzer (grammar rules)
+- `Makefile` - Compilation automation
+
+## ⚙️ Compilation
+Run the following commands:
+
+```sh
+bison -d parser.y
+flex lexer.l
+gcc parser.tab.c lex.yy.c -o calculator -lm
+
 **Commands**
 
 1. *make*

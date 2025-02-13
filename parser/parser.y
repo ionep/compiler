@@ -1,3 +1,10 @@
+/**
+ * @file parser.y
+ * @brief Bison parser for Regex checker.
+ *
+ * This file defines the grammar for our custom regular expression.
+ */
+
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +46,7 @@ void yyerror(const char *);
 %left NOT AMP
 %left PIPE
 %left ASTRK PLUS QUES 
+%start line
 /* %left MINUS
 %left LCUR RCUR
 %left LBIG RBIG
@@ -53,26 +61,28 @@ line: system
     | error { yyerror("Syntax error"); yyerrok; return 1;};
 
 system: SLASH rootregex SLASH { lineCount++; printf("/%s/\n",$2); }
-    | definition system{ lineCount++; printf("%s",$1); };
+    | definition system{ lineCount++; printf("%s%s",$1,$2); };
 
 definition: CONST ID EQUAL { $$ = malloc(strlen($2)+10); sprintf($$,"const %s = ",$2); };
 
 rootregex: rootregex AMP rootregex { $$ = malloc(strlen($1)+strlen($3)+4); sprintf($$,"%s & %s",$1,$3); }
-    | NOT seq { $$ = malloc(strlen($2) + 2); sprintf($$,"!%s",$2);}
-    | seq { $$ = malloc(strlen($1)+ 2); sprintf($$,"%s",$1);  };
+    | NOT alt { $$ = malloc(strlen($2) + 2); sprintf($$,"!%s",$2);}
+    | alt { $$ = malloc(strlen($1)+ 2); sprintf($$,"%s",$1);  };
+
+// one or more regex | regex
+alt: alt PIPE seq { $$=malloc(strlen($1)+strlen($3)+4); sprintf($$,"$%s | %s$",$1,$3);}
+    | seq { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1);  }
+    | LPAR alt RPAR { $$ = malloc(strlen($2)+ 3); sprintf($$,"(%s)",$2); }
+    | alt LPAR alt RPAR { $$ = malloc(strlen($1)+strlen($3)+ 3); sprintf($$,"%s(%s)",$1,$3); };
 
 //multiple regex
 seq: regex { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1);  }
-    | seq regex { $$=malloc(strlen($1)+strlen($2)+1); sprintf($$,"%s%s",$1,$2); }
-    | LPAR seq RPAR { $$ = malloc(strlen($2)+ 3); sprintf($$,"(%s)",$2); }
-    | seq LPAR seq RPAR { $$ = malloc(strlen($1)+strlen($3)+ 3); sprintf($$,"%s(%s)",$1,$3); };
-    | alt { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); };
+    | seq regex { $$=malloc(strlen($1)+strlen($2)+1); sprintf($$,"%s%s",$1,$2);};
+    /* | alt { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); }; */
 
 regex: term { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); }
     | repeat { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); }; // repeat has higher precedence than seq
 
-// one or more regex | regex
-alt: seq PIPE regex { $$=malloc(strlen($1)+strlen($3)+4); sprintf($$,"$%s | %s$",$1,$3); };
 
 repeat: regex ASTRK { $$ = malloc(strlen($1)+ 2); sprintf($$,"%s*",$1); }
     | regex PLUS { $$ = malloc(strlen($1)+ 2); sprintf($$,"%s+",$1);  }
@@ -81,19 +91,18 @@ repeat: regex ASTRK { $$ = malloc(strlen($1)+ 2); sprintf($$,"%s*",$1); }
 term: QUOTE multiliteral QUOTE { $$ = malloc(strlen($2)+ 5); sprintf($$,"\"%s\"",$2);}
     | range { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1);  }
     | wild { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1);  }
-    | substitute { $$ = malloc(strlen($1)+ 1); sprintf($$,"%s",$1); }
+    | substitute { $$ = malloc(strlen($1)+ 4); sprintf($$,"%s",$1); }
     | error { errID=3; yyerror("Error"); yyerrok; return 1;};
 
 range: LBIG multiregterm RBIG { $$=malloc(strlen($2)+3); sprintf($$,"[%s]",$2); }
     | LBIG CAP multiregterm RBIG { $$=malloc(strlen($3)+4); sprintf($$,"[^%s]",$3);};
 
-wild: WILD { $$ = malloc(2); sprintf($$,".");  };
+wild: WILD { $$ = malloc(2); sprintf($$,"%s",$1);  };
 
-substitute: LCUR ID RCUR { $$ = malloc(strlen($2)+ 4); sprintf($$,"${%s}",$2); };
+substitute: LCUR ID RCUR { $$ = $2;};
 
 multiregterm: regterm { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1);  };
-    | multiregterm regterm { $$=malloc(strlen($1)+strlen($2)+1); sprintf($$,"%s%s",$1,$2); 
-         };
+    | multiregterm regterm { $$=malloc(strlen($1)+strlen($2)+1); sprintf($$,"%s%s",$1,$2); };
 
 regterm: anychar { $$=malloc(strlen($1)+1); sprintf($$,"%s",$1); }
     | ESC RBIG { $$=malloc(2); sprintf($$,"]"); } // used \] to use ] or can use unicode but question mentions only for literals
