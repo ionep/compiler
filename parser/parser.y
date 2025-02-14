@@ -350,11 +350,11 @@ int main(int argc, char *argv[]) {
         printf("Please provide an input:\n");
     }
     if(yyparse()==0){
-        printf("accepts");
+        printf("accepts\n");
         exit(0);
     }
     else{
-        printf("Exiting due to error.");
+        printf("Exiting due to error.\n");
         exit(1);
     }
     return 0;
