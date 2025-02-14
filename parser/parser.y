@@ -268,7 +268,7 @@ regterm: anychar { // for characters which are not part of tokens eg: #, @,`, et
     | PERCENT { // % needs to be escaped in literals but is not compulsory for range. So, use the % character
         if (debugging){
             $$=malloc(2); 
-            sprintf($$,"%");
+            sprintf($$,"%%");
         }
     }; 
 
