@@ -2,8 +2,8 @@
 /"unicode literal" "🌶"*/
 /"%x7;%x0;"/
 /"h"[aeiou]+/
-/("asdsad")/
-/!("asdsad")/
+/("a")/
+/!("a")/
 /[+-]? ("0" | [1-9][0-9]+)/
 /[+-]? ("0" | ${NonZeroDigit}${Digit}+)/
 /"a" "b"| "c"/
@@ -11,9 +11,9 @@
 /${Filename} & .+ ".txt"/
 const s_re = /[a-z]/
 /("a") | "A"/
-/"asd"* "qer"+ "ssfd"?/
-/("asdasd"+ "asdasd"?)/
+/"a"* "b"+ "c"?/
+/("a"+ "a"?)/
 /"a" | "b" | "c"/
-/"asd"* "qwe" | "ppp"/
-/"asdsad%x022;asdsad"/
+/"a"* "b" | "c"/
+/"a%x022;b"/
 /["-\]]/

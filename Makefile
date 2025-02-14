@@ -20,9 +20,13 @@ $(PARSER_DIR)/parser.tab.c $(PARSER_DIR)/parser.tab.h: $(PARSER_DIR)/parser.y
 	cd $(PARSER_DIR) && bison -d parser.y && cd ..
 
 clean:
-	rm -f $(LEXER_DIR)/lex.yy.c $(PARSER_DIR)/parser.tab.c $(PARSER_DIR)/parser.tab.h $(PARSER_DIR)/*.o $(LEXER_DIR)/*.o parse
+	rm -f $(LEXER_DIR)/lex.yy.c $(PARSER_DIR)/parser.tab.c $(PARSER_DIR)/parser.tab.h $(PARSER_DIR)/*.o $(PARSER_DIR)/*.output $(LEXER_DIR)/*.o parse
 
 test:
 	./parse.exe tests/valid.txt
+
+debug: 
+	./parse.exe tests/valid.txt 1
+
 check:
-	rm -f $(PARSER_DIR)/parser.output && make clean && cd $(PARSER_DIR) && bison -v parser.y && cd ..
+	make clean && cd $(PARSER_DIR) && bison -v parser.y && cd ..
