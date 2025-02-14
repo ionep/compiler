@@ -64,7 +64,11 @@ int debugging=0; // make debug variable so that we can print when we need to
  a single line or multiple line */
 line: system
     | line system
-    | error { yyerror("Syntax error"); yyerrok; return 1;};
+    | error { 
+        yyerror("Syntax error"); 
+        yyerrok; 
+        return 1; // returns 1 to report error to main
+    };
 
 // System     := Definition* '/' RootRegex '/'
 system: SLASH rootregex SLASH { // the case of no definition and regex in form / RootRegex /
@@ -330,26 +334,26 @@ void yyerror(const char *s) {
 
 int main(int argc, char *argv[]) {
     if(argc == 3){ // check for third argument as debug
-        int var = atoi(argv[2]);
+        int var = atoi(argv[2]); // the argument is considered as string so convert to int
         if(var==0 || var == 1){ //check if it is 1 or 0, else throw error
             debugging = var;
         }
         else{
-            printf("Invalid debugging argument. Only 1 or 0 possible");
+            printf("Invalid debugging argument (1 or 0). Setting to 0 instead\n");
         }
     }
-    if (argc >= 2) {
+    if (argc >= 2) { // second argument is filepath 
         //open file if specified
         yyin = fopen(argv[1], "r");
-        if (!yyin) {
+        if (!yyin) { // exit if file doesn't exist or cannot open
             printf("Error opening file");
-            return 1;
+            exit(1);
         }
     }
-    else{
+    else{ // if no file is provided, take input manually
         printf("Please provide an input:\n");
     }
-    if(yyparse()==0){
+    if(yyparse()==0){ // if regular expression is correct, parser will return 0, else 1
         printf("accepts\n");
         exit(0);
     }

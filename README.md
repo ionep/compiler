@@ -1,6 +1,6 @@
 # Regular Expression Compiler
 
-This project implements a regular expression compiler as a part of project assignment of CS541.
+This project implements a regular expression compiler in flex and bison as a part of project assignment of CS541.
 
 ## 📝 How It Works
 - **Flex (`lexer/lexer.l`)** tokenizes the input characters.
@@ -8,7 +8,7 @@ This project implements a regular expression compiler as a part of project assig
 
 ## 📂 File Structure
 - `lexer/lexer.l` - Lexical analyzer (token definitions)
-- `parser/parser.y` - Parser (grammar rules)
+- `parser/parser.y` - Bison Parser (grammar rules)
 - `parse` - Executable file
 - `tests/` - Include two files valid.txt and invalid.txt for testing
 - `Makefile` - Compilation automation
@@ -20,7 +20,7 @@ This project implements a regular expression compiler as a part of project assig
 
 1. *make*
 
-    Builds "parse.exe" to run the parser.
+    Builds "parse" to run the parser.
 
 2. *make clean*
 
@@ -49,6 +49,8 @@ This project implements a regular expression compiler as a part of project assig
 
         Repeat => # #
     
+    Note that this is just to print and keep track during debugging and doesn't affect the actual parsing of the regular expression.
+    
     Eg:
 
         /"repeat"*/ will be printed as / #"repeat"*# /
@@ -60,11 +62,11 @@ This project implements a regular expression compiler as a part of project assig
 
 6. *./parse*
 
-    Takes input from the user
+    Runs the parser and takes input from the user
 
 7. *./parse filepath*
 
-    Input a file to the parser
+    Runs the parser on the input file mentioned in the argument
 
     Eg: 
         
