@@ -9,7 +9,7 @@ This project implements a regular expression compiler as a part of project assig
 ## 📂 File Structure
 - `lexer/lexer.l` - Lexical analyzer (token definitions)
 - `parser/parser.y` - Parser (grammar rules)
-- `parse.exe` - Executable file
+- `parse` - Executable file
 - `tests/` - Include two files valid.txt and invalid.txt for testing
 - `Makefile` - Compilation automation
 - `test.txt` - Immediate test cases to use with command 7
@@ -58,16 +58,16 @@ This project implements a regular expression compiler as a part of project assig
         /"reg1" "reg2"/ will be printed as / ^"reg1""reg2"^ /
 
 
-6. *./parse.exe*
+6. *./parse*
 
     Takes input from the user
 
-7. *./parse.exe filepath*
+7. *./parse filepath*
 
     Input a file to the parser
 
     Eg: 
         
-        ./parse.exe test.txt
+        ./parse test.txt
 
-        ./parse.exe tests/invalid.txt
+        ./parse tests/invalid.txt

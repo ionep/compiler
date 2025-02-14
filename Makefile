@@ -23,10 +23,10 @@ clean:
 	rm -f $(LEXER_DIR)/lex.yy.c $(PARSER_DIR)/parser.tab.c $(PARSER_DIR)/parser.tab.h $(PARSER_DIR)/*.o $(PARSER_DIR)/*.output $(LEXER_DIR)/*.o parse
 
 test:
-	./parse.exe tests/valid.txt
+	./parse tests/valid.txt
 
 debug: 
-	./parse.exe tests/valid.txt 1
+	./parse tests/valid.txt 1
 
 check:
 	make clean && cd $(PARSER_DIR) && bison -v parser.y && cd ..
