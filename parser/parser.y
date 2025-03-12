@@ -76,6 +76,7 @@ line: system {
         freeAST($1); // free the AST
     }
     | line system {
+        lineCount++; //increase linecount everytime we read a new line
         if(debugging){ // print the Abstract Syntax Tree for debugging
             printf("%d:",lineCount); 
             printAST($2,0);
@@ -90,11 +91,9 @@ line: system {
 
 // System     := Definition* '/' RootRegex '/'
 system: SLASH rootregex SLASH { // the case of no definition and regex in form / RootRegex /
-        lineCount++; //increase linecount everytime we read a new line
         $$ = createNode("SYSTEM",NULL,$2,NULL); // create a regex start
     } 
     | definition system{ // for one or more definition i.e. const ID = / regex / / RootRegex /
-        lineCount++; 
         $$ = createNode("SYSTEM",NULL,$1,$2); // create a regex start
     }; 
 
@@ -255,8 +254,7 @@ anychar: PLUS { $$= createNode("PLUS",$1,NULL,NULL);  } // '+'
         for(int i=2; i<strlen($1)-1; i++){
             x = x*10 + (int)($1[i]- '0');
         }
-        if (x<0 || x > 1114111 || (x>=55296 && x<=57343) ) { // max unicode codepoint is 0x10FFFF which is 1114111 in decimal
-                                                            // and surrogate range 0xD800 to 0xDFFF (55296 to 57343)
+        if (x<0 || x > 1114111 ) { // max unicode codepoint is 0x10FFFF which is 1114111 in decimal
             yyerror(code[5].msg); 
             return 1;
         }

@@ -1,2 +1,4 @@
-const x = /"hello"?/ /"there" ."asd%x1213213213213;"/ 
-/${x}/
+//const x = /"hello"?/ /"there" ."asd%x12;"/ 
+///${x}/
+
+/[+%x10;-%x12;]/
