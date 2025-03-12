@@ -15,7 +15,7 @@
     return SLASH;
 }
 "const" {   // const as a keyword for the "definition"
-    return CONST;
+    return CONST_TOK;
 }
 "=" {       // Paired with const keyword *    Note: * => but also can come inside literal or range
     return EQUAL;
@@ -91,7 +91,6 @@
     return PERCENT;
 }
 . {                 //select all other characters too which can exist inside "" or []
-    yylval.str = strdup(yytext);
     return OTHERCHAR;
 }
 <<EOF>> {       // return 0 only when the file ends so that we handle multiple regex
