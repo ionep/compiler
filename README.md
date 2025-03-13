@@ -12,7 +12,8 @@ manually deallocating all memory.
 ## 📂 File Structure
 - `lexer/lexer.l` - Lexical analyzer (token definitions)
 - `parser/parser.y` - Bison Parser (grammar rules)
-- `parser/astlib.h` - Custom Library for AST and Symbol Table defining data structure and essential functions
+- `lib/AST.h` - Custom Library for AST defining data structure and essential functions
+- `lib/Symbol.h` - Custom Library for Symbol Table defining data structure and essential functions
 - `parse` - Executable file
 - `tests/` - Include two files valid.txt and invalid.txt for testing
 - `Makefile` - Compilation automation

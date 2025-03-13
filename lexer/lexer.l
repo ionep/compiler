@@ -82,8 +82,17 @@
 [ \t\r\n]+ {        // all whitespace are ignored
     // Ignore whitespace
 }
-"%"x[0-9]+";" {     // unicode is escaped in the format %x[0-9]+;
+"%"x[+-]?[0-9]*";" {     // unicode is escaped in the format %x[0-9]+;
     yylval.str = strdup(yytext);
+    if(yylval.str[2] == '+' || yylval.str[2] == '-') { // filter signs and no number cases from lexer
+        fprintf(stderr, "Error: Invalid unicode escape sequence %s\n", yylval.str);
+        exit(1);
+    } else {
+        if(strlen(yylval.str) <= 3) {
+            fprintf(stderr, "Error: Invalid unicode escape sequence %s\n", yylval.str);
+            exit(1);
+        }
+    }
     return UNICODE; 
 }
 "%" {               /* this is just to make sure we dont have % in literals as they need to be escaped

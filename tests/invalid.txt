@@ -4,3 +4,4 @@
 /("ok) )/ -- unbalanced parens
 /[abc]^/ -- ^ unexpected 
 /!("abc" & [a-z])/ -- cannot nest & inside !
+/[%x23;-x23]/

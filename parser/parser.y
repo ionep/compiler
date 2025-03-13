@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "astlib.h" // library to define special structs and functions
-
+#include "../lib/AST.h" // library to define special structs and functions for abstract syntax tree
+#include "../lib/Symbol.h" // library to define special structs and functions for symbol table
 
 int yylex();
 
@@ -24,11 +24,13 @@ int lineCount=1; // to store the line that we are processing and display in erro
 struct errorCode code[] = {
     {0,"No error"},
     {1,"Unknown Error"},
-    {2, "Unexpected ^, &, *, +, ? or |"},
+    {2, "Range bound reversed. Start Unicode is greater than end Unicode"},
     {3, "Check for unmatched \", (, [, { OR unexpected ^ or %"},
     {4, "Undefined identifier"},
-    {5, "Invalid Unicode escape"},
-    {6, "Error using const format or missing SLASH"}
+    {5, "Unicode escape out of range"},
+    {6, "Error using const format or missing SLASH"},
+    {7, "Invalid range format with unicode"},
+    {8, "Duplicate definition of identifier"}
 }; // couldn't fix this to show different codes due to R/R conflict. So, use last for default as of now
 
 // Error handling
@@ -38,6 +40,9 @@ void clearYylval(); // function to clear yylval after every token to avoid memor
 int debugging=0; // make debug variable so that we can print when we need to
 
 Symbol *symbolTable = NULL; // declare symbol table to be empty
+
+ASTNode *leftMinus = NULL; // to store the node to left of minus in range []
+int minusflag = 0; // flag to check if minus is used in range
 
 %}
 
@@ -70,7 +75,7 @@ Symbol *symbolTable = NULL; // declare symbol table to be empty
  a single line or multiple line */
 line: system {
         if(debugging){ // print the Abstract Syntax Tree for debugging
-            printf("%d:",lineCount); 
+            printf("%d:\n",lineCount); 
             printAST($1,0); // print the AST
         }
         freeAST($1); // free the AST
@@ -78,7 +83,7 @@ line: system {
     | line system {
         lineCount++; //increase linecount everytime we read a new line
         if(debugging){ // print the Abstract Syntax Tree for debugging
-            printf("%d:",lineCount); 
+            printf("%d:\n",lineCount); 
             printAST($2,0);
         }
         freeAST($2); // free the AST
@@ -98,24 +103,31 @@ system: SLASH rootregex SLASH { // the case of no definition and regex in form /
     }; 
 
 definition: CONST_TOK ID EQUAL SLASH regex SLASH{ // definition in the form of "const ID = /regex/"
-        insertSymbol($2,&symbolTable); // pass by reference to update global
+        //Check if the ID is already defined in the symbol table.
+        if(checkSymbol($2,symbolTable)){
+            yyerror(code[8].msg);
+            return 1;
+        }
+        // Insert ID to symbol table and pass by reference to update global
+        insertSymbol($2,&symbolTable); 
+
         ASTNode *id= createNode("ID",$2,NULL,NULL); // create a node for ID
         $$ = createNode("DEFINITION",NULL,id,$5); // create DEFINITION node with id as value
         free($2); // free the ID as it is already stored in symbol table
     };
 
 rootregex: rootregex AMP rootregex { // For RootRegex = RootRegex & RootRegex
-        $$ = createNode("ROOTREGEX", "&", $1, $3); // amp node
+        $$ = createNode("&", "&", $1, $3); // amp node
     }
     | NOT alt { // For RootRegex = ! Regex (used alt to match precedence)
-        $$ = createNode("NOT REGEX", NULL, $2, NULL);
+        $$ = createNode("ROOTREGEX", "!", $2, NULL);
     }
     | alt { // For RootRegex = Regex (used alt to match precedence)
-        $$ = createNode("REGEX", NULL, $1, NULL);
+        $$ = createNode("ROOTREGEX", NULL, $1, NULL);
     };
 
 alt: seq { // For Regex = seq, kept here to match precedence of seq over alt
-        $$= createNode("SEQ",NULL,$1,NULL);
+        $$= $1;
     }
     | alt PIPE seq { /* For alt = Regex | Regex, where we group the first(alt) and second(seq) before |
         Here, alt PIPE is done for multiple PIPE in sequence and seq represents one or more regex
@@ -125,43 +137,43 @@ alt: seq { // For Regex = seq, kept here to match precedence of seq over alt
 
 //For Regex = seq
 seq: regex { // For only one Regex
-        $$ = createNode("REGEX",NULL,$1,NULL);
+        $$ = $1;
     }
     | seq regex { // For more than one regex
         $$ = createNode("SEQ", NULL, $1, $2);
     };
 
 regex: term { // For Regex = term
-        $$ = createNode("TERM",NULL,$1,NULL);
+        $$ = createNode("REGEX", NULL, $1, NULL);
         clearYylval();
     } 
     | LPAR alt RPAR { // For Regex = ( Regex ), used alt because alt is the highest level making ( ) higher precedence
-        $$ = createNode("(REGEX)"," () ",$2,NULL);
+        $$ = createNode("PAREN","()",$2,NULL);
     }
     | repeat { // Regex = repeat (always has higher precedence than seq)
-        $$ = createNode("REPEAT",NULL,$1,NULL);
+        $$ = $1;
     }; 
 
 // Three cases of repeat with *, + and ?
 repeat: regex ASTRK { 
-        $$ = createNode("*", $2, $1, NULL);
+        $$ = createNode("REPEAT", $2, $1, NULL);
     }
     | regex PLUS { 
-        $$ = createNode("+", $2, $1, NULL);
+        $$ = createNode("REPEAT", $2, $1, NULL);
     }
     | regex QUES { 
-        $$ = createNode("?", $2, $1, NULL);
+        $$ = createNode("REPEAT", $2, $1, NULL);
     };
 
 // term = literal | range | wild | substitute
 term: QUOTE multiliteral QUOTE { // For term = literal (used multiliteral to handle multiple characters in quotes)
-        $$ = createNode("LITERAL", NULL, $2, NULL);
+        $$ = createNode("TERM", NULL, $2, NULL);
     }
     | range { // For term = range i.e. inside []
-        $$ = createNode("RANGE",NULL,$1,NULL);
+        $$ = $1;
     }
     | wild { //For term ='.'
-        $$ = createNode("WILD",NULL,$1,NULL);
+        $$ = createNode("TERM",NULL,$1,NULL);
     }
     | substitute { // For term = ${ }
         if (!checkSymbol($1->value,symbolTable)) { // check if the ID is defined in symbol table
@@ -172,18 +184,24 @@ term: QUOTE multiliteral QUOTE { // For term = literal (used multiliteral to han
         $$ = createNode("SUBSTITUTE", "${ }",$1,NULL);
     }
     | error { 
-        yyerror(code[4].msg); yyerrok; return 1;
+        yyerror(code[3].msg); yyerrok; return 1;
     };
 
 range: LBIG multiregterm RBIG { // Range = [ ] with no ^
-        $$ = createNode("[]", NULL, $2, NULL);
+        $$ = createNode("RANGE","[]",$2,NULL);
+        minusflag=0; // reset the minus flag
+        freeAST(leftMinus); // free the leftMinus node
+        leftMinus=NULL; // reset the leftMinus node
     }
     | LBIG CAP multiregterm RBIG { // Range = [^ ]
-        $$ = createNode("[^]", NULL, $3, NULL);
+        $$ = createNode("RANGE","[^]",$3,NULL);
+        minusflag=0; // reset the minus flag
+        freeAST(leftMinus); // free the leftMinus node
+        leftMinus=NULL; // reset the leftMinus node
     };
 
 wild: WILD { // i.e. '.' 
-        $$ = createNode("WILD",$1,NULL,NULL);
+        $$ = createNode("WILD",".",NULL,NULL);
     };
 
 substitute: LCUR ID RCUR { // case of ${ }
@@ -192,69 +210,114 @@ substitute: LCUR ID RCUR { // case of ${ }
 
 // for one or more characters in range i.e. [ ]
 multiregterm: regterm { // only one character inside range
-        $$ = createNode("REGTERM",NULL,$1,NULL);
-    };
+        $$ = $1;
+        if(!minusflag){ // called for the first term in range and we assign it as left
+            leftMinus=createNode($1->type,$1->value,$1->left,$1->right); // copy the current node to leftMinus
+        }
+    }
     | multiregterm regterm { //more than one characters
-        $$ = createNode("REGTERM", NULL, $1, $2);
+        $$ = createNode("RANGE_VAL", NULL, $1, $2);
+
+        /*
+            This part handles the range validation for unicode characters. We assign each node to leftMinus and replace recursively until we get a minus.
+            After minus, we get the next node and first, check if the left node and right node are unicode. We can extend this to other types too as well.
+            Also, if one of the two is unicode, the other needs to be as well. Then, we compare the values and check if range is valid. If not, throw error.
+            If the range is valid, we free the leftMinus node and reset the leftMinus node and minusflag for next range.
+        */
+
+        if($2 && strcmp($2->type,"MINUS")==0 && leftMinus!=NULL){ // check if the character is minus and left node is set, then set flag
+            minusflag = 1;
+        }
+        else if(!minusflag && $2 && strcmp($2->type,"MINUS")!=0){ // if minus is not set and the current node is not "-", then set it to leftMinus
+            freeAST(leftMinus); // clear previous allocation and reallocate
+            leftMinus=createNode($2->type,$2->value,$2->left,$2->right); // allocate leftMinus to current node
+        }
+        else if(leftMinus!=NULL){ // check if the left node is present
+            int leftUni=strcmp(leftMinus->type,"UNICODE"); // check if left node is unicode
+            int rightUni=strcmp($2->type,"UNICODE"); // check if right node is unicode
+            if(leftUni==0 && rightUni==0){ // only do calculation for unicode (can be extended for others too)
+                long right;
+                sscanf($2->value, "%%x%ld;", &right); // extract long from current unicode
+                long left;
+                sscanf(leftMinus->value, "%%x%ld;", &left); // extract long from leftMinus unicode
+                if(right<left){ // compare if it is in increasing order
+                    yyerror(code[2].msg);
+                    return 1;
+                }
+            }
+            else if((leftUni!=0 && rightUni==0) || (leftUni==0 && rightUni!=0)){ // error if only one is unicode
+                yyerror(code[7].msg);
+                return 1;
+            }
+            freeAST(leftMinus); // free the leftMinus node after use
+            leftMinus=NULL; // set to null
+            minusflag=0; // reset minus flag
+        }
+        else{
+            minusflag=0; // if leftMinus is null, reset the minus flag
+        }
+
     };
 
 // any single character inside range [ ]
 regterm: anychar { // for characters which are not part of tokens eg: #, @,`, etc which are still usable
-        $$ = createNode("ANYCHAR",NULL,$1,NULL);
+        $$ = $1;
     }
     | ESC RBIG { // used \] to use ] or can use unicode but question mentions only for literals
-        $$ = createNode("RBIG",$1,NULL,NULL);
+        $$ = createNode("RBIG","]",NULL,NULL);
     } 
     | QUOTE {  // [ " ] use of quote inside [ ]
-        $$ = createNode("\"",$1,NULL,NULL);
+        $$ = createNode("QUOTE","\"",NULL,NULL);
     }
     | PERCENT { // % needs to be escaped in literals but is not compulsory for range. So, use the % character
-        $$ = createNode("%",$1,NULL,NULL);
-    }; 
+        $$ = createNode("PERCENT","%%",NULL,NULL);
+    };
 
 // multiple characters inside double quotes
 multiliteral: literal { // for only one character inside " "
-        $$ = createNode("LITERAL",NULL,$1,NULL);
+        $$ = $1;
     }
     | multiliteral literal { // for multiple characters inside " "
         $$ = createNode("LITERAL", NULL, $1, $2);
     };
 
 literal: anychar { // represents all characters that are possible inside " " except ], " and %
-        $$ = createNode("ANYCHAR",NULL,$1,NULL);
+        $$ = $1;
     }
     /* | ESC QUOTE { $$=malloc(strlen($2)+2); sprintf($$,"\\\"",$2);} //this works too \" but used unicode */
     | RBIG { // ] since it is not part of anychar
-        $$= createNode("]",$1,NULL,NULL); 
+        $$= createNode("RBIG","]",NULL,NULL); 
     };
 
 // includes all the tokens defined which can exist inside literals or range too
-anychar: PLUS { $$= createNode("PLUS",$1,NULL,NULL);  } // '+'
-    | MINUS { $$= createNode("MINUS",$1,NULL,NULL);  } // '-'
-    | CONST_TOK { $$= createNode("CONST",$1,NULL,NULL); } // 'const'
-    | EQUAL { $$= createNode("EQUAL",$1,NULL,NULL); } // '='
-    | AMP { $$= createNode("AMP",$1,NULL,NULL); } // '&'
-    | NOT { $$= createNode("NOT",$1,NULL,NULL); } // '!'
-    | LPAR { $$= createNode("LPAR",$1,NULL,NULL); } // '('
-    | RPAR { $$= createNode("RPAR",$1,NULL,NULL); } // ')'
-    | PIPE { $$= createNode("PIPE",$1,NULL,NULL); } // '|'
-    | QUES { $$= createNode("QUES",$1,NULL,NULL); } // '?'
-    | LBIG { $$= createNode("LBIG",$1,NULL,NULL); } // '['
-    | ESC ESC { $$= createNode("ESC",$1,NULL,NULL); } // '\\'
-    | ASTRK { $$= createNode("ASTRK",$1,NULL,NULL); } // '*'
-    | WILD {  $$ = createNode("WILD",$1,NULL,NULL); }; // '.'
-    | LCUR { $$= createNode("LCUR",$1,NULL,NULL); } // '${'
-    | RCUR { $$= createNode("RCUR",$1,NULL,NULL); } // '}'
+anychar: PLUS { $$= createNode("PLUS","+",NULL,NULL);  } // '+'
+    | MINUS { $$= createNode("MINUS","-",NULL,NULL);  } // '-'
+    | CONST_TOK { $$= createNode("CONST","const",NULL,NULL); } // 'const'
+    | EQUAL { $$= createNode("EQUAL","=",NULL,NULL); } // '='
+    | AMP { $$= createNode("AMP","&",NULL,NULL); } // '&'
+    | NOT { $$= createNode("NOT","!",NULL,NULL); } // '!'
+    | LPAR { $$= createNode("LPAR","(",NULL,NULL); } // '('
+    | RPAR { $$= createNode("RPAR",")",NULL,NULL); } // ')'
+    | PIPE { $$= createNode("PIPE","|",NULL,NULL); } // '|'
+    | QUES { $$= createNode("QUES","?",NULL,NULL); } // '?'
+    | LBIG { $$= createNode("LBIG","[",NULL,NULL); } // '['
+    | ESC ESC { $$= createNode("ESC","\\",NULL,NULL); } // '\\'
+    | ASTRK { $$= createNode("ASTRK","*",NULL,NULL); } // '*'
+    | WILD {  $$ = createNode("WILD",".",NULL,NULL); }; // '.'
+    | LCUR { $$= createNode("LCUR","${",NULL,NULL); } // '${'
+    | RCUR { $$= createNode("RCUR","}",NULL,NULL); } // '}'
     | ID { $$= createNode("ID",$1,NULL,NULL); clearYylval();} // alphanumeric tokens
     | OTHERCHAR { $$= createNode("OTHERS",$1,NULL,NULL); } // includes all other characters except tokens
     | UNICODE { 
         // Validate Unicode escape
         long x=0;
-        // extracting the number from the unicode. 2 represents the starting number and -1 represents the character before ";"
-        for(int i=2; i<strlen($1)-1; i++){
-            x = x*10 + (int)($1[i]- '0');
+        // extracting the number from the unicode representation
+        if (sscanf($1, "%%x%ld;", &x) != 1) {
+            yyerror(code[3].msg);
+            return 1;
         }
-        if (x<0 || x > 1114111 ) { // max unicode codepoint is 0x10FFFF which is 1114111 in decimal
+
+        if (x < 0 || x > 1114111) { // max unicode codepoint is 0x10FFFF which is 1114111 in decimal
             yyerror(code[5].msg); 
             return 1;
         }
@@ -265,7 +328,7 @@ anychar: PLUS { $$= createNode("PLUS",$1,NULL,NULL);  } // '+'
 %%
 
 void yyerror(const char *s){ // function to print error message{
-    fprintf(stderr, "Line %d: Error: %s\n", lineCount,s);
+    fprintf(stderr, "Line %d: Error: %s\n", lineCount+1,s);
 }
 
 void clearYylval(){ // function to clear yylval which is done after every token to avoid memory leaks

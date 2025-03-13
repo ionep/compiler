@@ -4,6 +4,7 @@ CLANGFLAGS = -fsanitize=address
 CFLAGS = -Wall -lm
 LEXER_DIR = lexer
 PARSER_DIR = parser
+LIB_DIR = lib
 all: parse
 
 # generate default parse target for running 
@@ -29,7 +30,7 @@ $(PARSER_DIR)/parser.tab.clang.o: $(PARSER_DIR)/parser.tab.c
 $(LEXER_DIR)/lex.yy.c: $(LEXER_DIR)/lexer.l
 	cd $(LEXER_DIR) && flex lexer.l && cd ..
 
-$(PARSER_DIR)/parser.tab.c $(PARSER_DIR)/parser.tab.h: $(PARSER_DIR)/parser.y $(PARSER_DIR)/astlib.h
+$(PARSER_DIR)/parser.tab.c $(PARSER_DIR)/parser.tab.h: $(PARSER_DIR)/parser.y $(LIB_DIR)/AST.h $(LIB_DIR)/Symbol.h
 	cd $(PARSER_DIR) && bison -d parser.y && cd ..
 
 # clean up the generated files
