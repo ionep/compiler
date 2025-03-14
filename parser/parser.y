@@ -183,11 +183,8 @@ term: QUOTE multiliteral QUOTE { // For term = literal (used multiliteral to han
         $$=$1;
     }
     | substitute { // For term = ${ }
-        if (!checkSymbol($1->value,symbolTable)) { // check if the ID is defined in symbol table and if not, add to unknownSymbol table
-            // yyerror(code[4].msg); // print error message
-            // freeAST($1);
-            // return 1;
-            insertSymbol($1->value,&unknownSymbol); // insert the unknown symbol to unknownSymbol table
+        if (!checkSymbol($1->value,symbolTable)) { // check if the ID is defined in symbol table and if not, add to unknownSymbol table for later validation
+            insertSymbol($1->value,&unknownSymbol); // insert the unknown symbol to unknownSymbol table and validate at the end
         }
         $$ = createNode("SUBSTITUTE", "${ }",$1,NULL);
     }
@@ -377,9 +374,9 @@ int main(int argc, char *argv[]) {
         printf("Please provide an input:\n");
     }
     if(yyparse()==0){ // if regular expression is correct, parser will return 0, else 1
-        while(unknownSymbol!=NULL){ // print all unknown symbols
-            if(!checkSymbol(unknownSymbol->name, symbolTable)){
-                yyerror(code[4].msg); // print error message
+        while(unknownSymbol!=NULL){ // verify that all unknown symbol table have been defined later on
+            if(!checkSymbol(unknownSymbol->name, symbolTable)){ // compare each unknown symbols in the symbol table
+                yyerror(code[4].msg); // print error message if the unknown symbol is not in the symbol table
                 exit(1);
             }
             unknownSymbol=unknownSymbol->next;
