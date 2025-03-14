@@ -4,6 +4,7 @@
     */
     //file location to the parser header generated
     #include "../parser/parser.tab.h" 
+    #include <string.h>
 %}
 
 %%
