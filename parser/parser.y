@@ -41,6 +41,8 @@ int debugging=0; // make debug variable so that we can print when we need to
 
 Symbol *symbolTable = NULL; // declare symbol table to be empty
 
+Symbol *unknownSymbol = NULL; // declare unknown symbol to be empty
+
 ASTNode *leftMinus = NULL; // to store the node to left of minus in range []
 int minusflag = 0; // flag to check if minus is used in range
 
@@ -96,7 +98,8 @@ line: system {
 
 // System     := Definition* '/' RootRegex '/'
 system: SLASH rootregex SLASH { // the case of no definition and regex in form / RootRegex /
-        $$ = createNode("SYSTEM",NULL,$2,NULL); // create a regex start
+        // $$ = createNode("SYSTEM",NULL,$2,NULL); // create a regex start
+        $$ = $2;
     } 
     | definition system{ // for one or more definition i.e. const ID = / regex / / RootRegex /
         $$ = createNode("SYSTEM",NULL,$1,$2); // create a regex start
@@ -123,7 +126,8 @@ rootregex: rootregex AMP rootregex { // For RootRegex = RootRegex & RootRegex
         $$ = createNode("ROOTREGEX", "!", $2, NULL);
     }
     | alt { // For RootRegex = Regex (used alt to match precedence)
-        $$ = createNode("ROOTREGEX", NULL, $1, NULL);
+        // $$ = createNode("ROOTREGEX", NULL, $1, NULL);
+        $$ = $1;
     };
 
 alt: seq { // For Regex = seq, kept here to match precedence of seq over alt
@@ -144,7 +148,8 @@ seq: regex { // For only one Regex
     };
 
 regex: term { // For Regex = term
-        $$ = createNode("REGEX", NULL, $1, NULL);
+        // $$ = createNode("REGEX", NULL, $1, NULL);
+        $$ = $1;
         clearYylval();
     } 
     | LPAR alt RPAR { // For Regex = ( Regex ), used alt because alt is the highest level making ( ) higher precedence
@@ -167,19 +172,22 @@ repeat: regex ASTRK {
 
 // term = literal | range | wild | substitute
 term: QUOTE multiliteral QUOTE { // For term = literal (used multiliteral to handle multiple characters in quotes)
-        $$ = createNode("TERM", NULL, $2, NULL);
+        // $$ = createNode("TERM", NULL, $2, NULL);
+        $$=$2;
     }
     | range { // For term = range i.e. inside []
         $$ = $1;
     }
     | wild { //For term ='.'
-        $$ = createNode("TERM",NULL,$1,NULL);
+        // $$ = createNode("TERM",NULL,$1,NULL);
+        $$=$1;
     }
     | substitute { // For term = ${ }
-        if (!checkSymbol($1->value,symbolTable)) { // check if the ID is defined in symbol table
-            yyerror(code[4].msg); // print error message
-            freeAST($1);
-            return 1;
+        if (!checkSymbol($1->value,symbolTable)) { // check if the ID is defined in symbol table and if not, add to unknownSymbol table
+            // yyerror(code[4].msg); // print error message
+            // freeAST($1);
+            // return 1;
+            insertSymbol($1->value,&unknownSymbol); // insert the unknown symbol to unknownSymbol table
         }
         $$ = createNode("SUBSTITUTE", "${ }",$1,NULL);
     }
@@ -340,6 +348,7 @@ void clearYylval(){ // function to clear yylval which is done after every token 
 
 void cleanUp(){ // clean up the symbol table, file pointer and yylval at the end
     freeSymbolTable(symbolTable); // free the symbol table
+    freeSymbolTable(unknownSymbol); // free the unknown symbol table, if any
     if(yyin){ // close file if opened
         fclose(yyin);
     }
@@ -368,6 +377,14 @@ int main(int argc, char *argv[]) {
         printf("Please provide an input:\n");
     }
     if(yyparse()==0){ // if regular expression is correct, parser will return 0, else 1
+        while(unknownSymbol!=NULL){ // print all unknown symbols
+            if(!checkSymbol(unknownSymbol->name, symbolTable)){
+                yyerror(code[4].msg); // print error message
+                exit(1);
+            }
+            unknownSymbol=unknownSymbol->next;
+        }
+
         printf("accepts\n");
         if(debugging){
             printSymbolTable(symbolTable);

@@ -5,3 +5,6 @@ const x = /"hello"?/ /"there" ."asd%x12;"/
 /[a-s-d-asd%x10;-%x19;sadasdj-c]/
 /["-;%x4;-%x34;]/
 ///[%x23;-x23]/
+const r1 = /${r2}/
+/"asd"/
+const r2 = /"asd"/ /"asd"/

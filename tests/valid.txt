@@ -36,6 +36,7 @@ const s_re = /[a-z]/
 /("a") ("c")* | "a"/ 
 /("a")+ ("c")* | "a"/ 
 /("x") | ("x")/
+const r1 = /${r2}/
 /("x") | ("x") | "y"/
 const x = /"hello"?/ /"there" ."asd%x12;"/ 
 /${x}/
@@ -43,3 +44,5 @@ const x = /"hello"?/ /"there" ."asd%x12;"/
 /[+a%x5;-%x10;]/
 /[a-s-d-asd%x10;-%x19;sadasdj-c]/
 /["-;%x4;-%x34;]/
+const r2 = /"asd"/ 
+/"asd"/

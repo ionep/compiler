@@ -1,5 +1,5 @@
 CC = gcc 
-CLANG = clang
+CLANG = clang #can use gcc too
 CLANGFLAGS = -fsanitize=address
 CFLAGS = -Wall -lm
 LEXER_DIR = lexer
