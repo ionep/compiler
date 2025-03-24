@@ -7,10 +7,6 @@ const Digit = /${NonZeroDigit}/
 const NonZeroDigit = /[1-9]/
 
 /"0" | ${Digit}+/
-
-const NonZeroDigit = /[1-9]/
-const Digit = /${NonZeroDigit}/
-
 /"0" | ${Digit}+/
 /"%x7;%x0;"/
 
