@@ -240,18 +240,22 @@ multiregterm: regterm { // only one character inside range
         else if(leftMinus!=NULL){ // check if the left node is present
             int leftUni=strcmp(leftMinus->type,"UNICODE"); // check if left node is unicode
             int rightUni=strcmp($2->type,"UNICODE"); // check if right node is unicode
-            if(leftUni==0 && rightUni==0){ // only do calculation for unicode (can be extended for others too)
-                long right;
-                sscanf($2->value, "%%x%ld;", &right); // extract long from current unicode
-                long left;
-                sscanf(leftMinus->value, "%%x%ld;", &left); // extract long from leftMinus unicode
-                if(right<left){ // compare if it is in increasing order
-                    yyerror(code[2].msg);
-                    return 1;
-                }
+            long left, right;
+            if(leftUni==0){
+                sscanf(leftMinus->value, "%%x%lx;", &left); // extract long from leftMinus unicode
             }
-            else if((leftUni!=0 && rightUni==0) || (leftUni==0 && rightUni!=0)){ // error if only one is unicode
-                yyerror(code[7].msg);
+            else{
+                int len = strlen(leftMinus->value);
+                left = (int)leftMinus->value[len-1];
+            }
+            if(rightUni==0){
+                sscanf($2->value, "%%x%lx;", &right); // extract long from current unicode
+            }
+            else{
+                right = (int)$2->value[0];
+            }
+            if(right<left){ // compare if it is in increasing order
+                yyerror(code[2].msg);
                 return 1;
             }
             freeAST(leftMinus); // free the leftMinus node after use
@@ -312,16 +316,15 @@ anychar: PLUS { $$= createNode("PLUS","+",NULL,NULL);  } // '+'
     | LCUR { $$= createNode("LCUR","${",NULL,NULL); } // '${'
     | RCUR { $$= createNode("RCUR","}",NULL,NULL); } // '}'
     | ID { $$= createNode("ID",$1,NULL,NULL); clearYylval();} // alphanumeric tokens
-    | OTHERCHAR { $$= createNode("OTHERS",$1,NULL,NULL); } // includes all other characters except tokens
+    | OTHERCHAR { $$= createNode("OTHERS",$1,NULL,NULL); clearYylval();} // includes all other characters except tokens
     | UNICODE { 
-        // Validate Unicode escape
-        long x=0;
+        // Extract the Unicode value using sscanf
+        long x = 0;
         // extracting the number from the unicode representation
-        if (sscanf($1, "%%x%ld;", &x) != 1) {
+        if (sscanf($1, "%%x%lx;", &x) != 1) {
             yyerror(code[3].msg);
             return 1;
         }
-
         if (x < 0 || x > 1114111) { // max unicode codepoint is 0x10FFFF which is 1114111 in decimal
             yyerror(code[5].msg); 
             return 1;

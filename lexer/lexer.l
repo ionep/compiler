@@ -83,7 +83,7 @@
 [ \t\r\n]+ {        // all whitespace are ignored
     // Ignore whitespace
 }
-"%"x[+-]?[0-9]*";" {     // unicode is escaped in the format %x[0-9]+;
+"%"x[+-]?[0-9A-Fa-f]*";" {     // unicode is escaped in the format %x[0-9]+;
     yylval.str = strdup(yytext);
     if(yylval.str[2] == '+' || yylval.str[2] == '-') { // filter signs and no number cases from lexer
         fprintf(stderr, "Error: Invalid unicode escape sequence %s\n", yylval.str);
@@ -101,6 +101,7 @@
     return PERCENT;
 }
 . {                 //select all other characters too which can exist inside "" or []
+    yylval.str = strdup(yytext);
     return OTHERCHAR;
 }
 <<EOF>> {       // return 0 only when the file ends so that we handle multiple regex

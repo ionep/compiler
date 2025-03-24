@@ -1,10 +1,19 @@
-const x = /"hello"?/ /"there" ."asd%x12;"/ 
-/${x}/
-/[+-]? ("0" | [1-9][0-9]+)/
-/[+a%x5;-%x10;]/
-/[a-s-d-asd%x10;-%x19;sadasdj-c]/
-/["-;%x4;-%x34;]/
-///[%x23;-x23]/
-const r1 = /${r2}/
-const r2 = /"asd"/
-/${r1}${r2}/
+/"h"[%x5;-%x76;]?/
+
+/"h"${Digit}("a" | ("c" ${Digit}+)?)/
+/"%xa0;%xA;"/
+/"h"[aeiou]?/
+const Digit = /${NonZeroDigit}/
+const NonZeroDigit = /[1-9]/
+
+/"0" | ${Digit}+/
+
+const NonZeroDigit = /[1-9]/
+const Digit = /${NonZeroDigit}/
+
+/"0" | ${Digit}+/
+/"%x7;%x0;"/
+
+
+/"0" | ${NonZeroDigit}${Digit}+/
+/"h"[A-%x76;]?/
