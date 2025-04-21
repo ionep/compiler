@@ -5,6 +5,9 @@ parser/*.c
 parser/*.h
 parser/*.o
 
-parse.exe
+parse
+generate
+rexec.c
+rexec
 
 .vscode

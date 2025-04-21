@@ -1,15 +1,5 @@
-/"h"[%x5;-%x76;]?/
+///"a" & !"b"/
 
-/"h"${Digit}("a" | ("c" ${Digit}+)?)/
-/"%xa0;%xA;"/
-/"h"[aeiou]?/
-const Digit = /${NonZeroDigit}/
-const NonZeroDigit = /[1-9]/
-
-/"0" | ${Digit}+/
-/"0" | ${Digit}+/
-/"%x7;%x0;"/
-
-
-/"0" | ${NonZeroDigit}${Digit}+/
-/"h"[A-%x76;]?/
+///[a-z0-9_]/
+///[+-]?[0-9%x213;]/
+/[+-]?[%x21;-%x31;a-z0-9_]/

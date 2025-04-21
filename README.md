@@ -14,6 +14,7 @@ manually deallocating all memory.
 - `parser/parser.y` - Bison Parser (grammar rules)
 - `lib/AST.h` - Custom Library for AST defining data structure and essential functions
 - `lib/Symbol.h` - Custom Library for Symbol Table defining data structure and essential functions
+- `lib/lib.h` - Combined AST and Symbol
 - `parse` - Executable file
 - `tests/` - Include two files valid.txt and invalid.txt for testing
 - `Makefile` - Compilation automation
@@ -43,7 +44,9 @@ manually deallocating all memory.
 
 1. *make*
 
-    Builds "parse" to run the parser.
+    Builds "generate" to run the parser.
+
+    Use *make parse* to build parse instead.
 
 2. *make mem*
 
@@ -59,9 +62,13 @@ manually deallocating all memory.
     
 4. *make test*
 
-    Test for the parser based on valid tests in "tests/valid.txt".
+    Test for the parser based on valid tests in "tests/valid.txt". Changed to "test.txt" for single
+
+5. *make stringtest*
+
+    Test for the generated C file on "ctest.txt" string.
     
-5. *make debug*
+6. *make debug*
 
     Test for the parser based on valid tests (tests/valid.txt) and set debugging to 1 to print back the Abstract Syntax Tree and Symbol table.
 
@@ -99,13 +106,13 @@ manually deallocating all memory.
 **Commands**
 
 
-1. *./parse*
+1. *./generate*
 
     Runs the parser and takes input from the user
 
-2. *./parse filepath*
+2. *./generate filepath*
 
-    Runs the parser on the input file mentioned in the argument
+    Runs the parser on the input file mentioned in the argument and generates C code "rexec.c"
 
     Eg: 
         
@@ -122,6 +129,14 @@ manually deallocating all memory.
         valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./parse test.txt
 
         valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./parse tests/valid.txt
+
+4. *gcc rexec.c -o rexec && ./rexec filepath* 
+
+    Compiles the generated C code and runs the string in given filepath.
+
+    Eg: 
+        
+        ./rexec ctest.txt
 
 
 ## Grammar

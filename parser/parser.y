@@ -6,12 +6,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../lib/AST.h" // library to define special structs and functions for abstract syntax tree
-#include "../lib/Symbol.h" // library to define special structs and functions for symbol table
+
+// #ifndef SYMBOL_H
+// #define SYMBOL_H
+// #include "../lib/Symbol.h" // library to define special structs and functions for symbol table
+// #endif
+
+// #ifndef AST_H
+// #define AST_H
+// #include "../lib/AST.h" // library to define special structs and functions for abstract syntax tree
+// #endif
+#include "../lib/lib.h" 
+
 
 int yylex();
 
 extern FILE *yyin;
+
+FILE *out_c_file;
+
+extern State *all_states_head;
 
 //custom error message
 struct errorCode{
@@ -45,6 +59,10 @@ Symbol *unknownSymbol = NULL; // declare unknown symbol to be empty
 
 ASTNode *leftMinus = NULL; // to store the node to left of minus in range []
 int minusflag = 0; // flag to check if minus is used in range
+int stop_free = 0; 
+
+int symbolCount = 0; 
+ASTNode *tempholder[1024];
 
 %}
 
@@ -80,7 +98,16 @@ line: system {
             printf("%d:\n",lineCount); 
             printAST($1,0); // print the AST
         }
-        freeAST($1); // free the AST
+        generateParseCode($1,out_c_file, symbolTable); // generate the parse code for the AST
+        freeStates(all_states_head);
+        if(!stop_free){
+            freeAST($1); // free the AST
+        }
+        else{
+            tempholder[symbolCount] = $1; // store the AST in a temporary holder to free later
+            symbolCount++; // increase the symbol count to keep track of how many ASTs are stored
+            stop_free = 0; // reset the stop_free flag
+        }
     }
     | line system {
         lineCount++; //increase linecount everytime we read a new line
@@ -88,7 +115,14 @@ line: system {
             printf("%d:\n",lineCount); 
             printAST($2,0);
         }
-        freeAST($2); // free the AST
+        if(!stop_free){
+            freeAST($2); // free the AST
+        }
+        else{
+            tempholder[symbolCount] = $2; // store the AST in a temporary holder to free later
+            symbolCount++; // increase the symbol count to keep track of how many ASTs are stored
+            stop_free = 0; // reset the stop_free flag
+        }
     }
     | error { 
         yyerror(code[1].msg); 
@@ -112,7 +146,9 @@ definition: CONST_TOK ID EQUAL SLASH regex SLASH{ // definition in the form of "
             return 1;
         }
         // Insert ID to symbol table and pass by reference to update global
-        insertSymbol($2,&symbolTable); 
+        insertSymbol($2,$5,&symbolTable); 
+
+        stop_free = 1;
 
         ASTNode *id= createNode("ID",$2,NULL,NULL); // create a node for ID
         $$ = createNode("DEFINITION",NULL,id,$5); // create DEFINITION node with id as value
@@ -120,10 +156,10 @@ definition: CONST_TOK ID EQUAL SLASH regex SLASH{ // definition in the form of "
     };
 
 rootregex: rootregex AMP rootregex { // For RootRegex = RootRegex & RootRegex
-        $$ = createNode("&", "&", $1, $3); // amp node
+        $$ = createNode("CONCAT", "&", $1, $3); // amp node
     }
     | NOT alt { // For RootRegex = ! Regex (used alt to match precedence)
-        $$ = createNode("ROOTREGEX", "!", $2, NULL);
+        $$ = createNode("NOTREGEX", "!", $2, NULL);
     }
     | alt { // For RootRegex = Regex (used alt to match precedence)
         // $$ = createNode("ROOTREGEX", NULL, $1, NULL);
@@ -161,13 +197,13 @@ regex: term { // For Regex = term
 
 // Three cases of repeat with *, + and ?
 repeat: regex ASTRK { 
-        $$ = createNode("REPEAT", $2, $1, NULL);
+        $$ = createNode("REPEAT", "*", $1, NULL);
     }
     | regex PLUS { 
-        $$ = createNode("REPEAT", $2, $1, NULL);
+        $$ = createNode("REPEAT", "+", $1, NULL);
     }
     | regex QUES { 
-        $$ = createNode("REPEAT", $2, $1, NULL);
+        $$ = createNode("REPEAT", "?", $1, NULL);
     };
 
 // term = literal | range | wild | substitute
@@ -184,7 +220,7 @@ term: QUOTE multiliteral QUOTE { // For term = literal (used multiliteral to han
     }
     | substitute { // For term = ${ }
         if (!checkSymbol($1->value,symbolTable) && !checkSymbol($1->value,unknownSymbol)) { // check if the ID is defined in symbol table and if not, add to unknownSymbol table for later validation
-            insertSymbol($1->value,&unknownSymbol); // insert the unknown symbol to unknownSymbol table and validate at the end
+            insertSymbol($1->value,NULL,&unknownSymbol); // insert the unknown symbol to unknownSymbol table and validate at the end
         }
         $$ = createNode("SUBSTITUTE", "${ }",$1,NULL);
     }
@@ -199,7 +235,7 @@ range: LBIG multiregterm RBIG { // Range = [ ] with no ^
         leftMinus=NULL; // reset the leftMinus node
     }
     | LBIG CAP multiregterm RBIG { // Range = [^ ]
-        $$ = createNode("RANGE","[^]",$3,NULL);
+        $$ = createNode("NEGRANGE","[^]",$3,NULL);
         minusflag=0; // reset the minus flag
         freeAST(leftMinus); // free the leftMinus node
         leftMinus=NULL; // reset the leftMinus node
@@ -312,7 +348,7 @@ anychar: PLUS { $$= createNode("PLUS","+",NULL,NULL);  } // '+'
     | LBIG { $$= createNode("LBIG","[",NULL,NULL); } // '['
     | ESC ESC { $$= createNode("ESC","\\",NULL,NULL); } // '\\'
     | ASTRK { $$= createNode("ASTRK","*",NULL,NULL); } // '*'
-    | WILD {  $$ = createNode("WILD",".",NULL,NULL); }; // '.'
+    | WILD {  $$ = createNode("DOT",".",NULL,NULL); }; // '.'
     | LCUR { $$= createNode("LCUR","${",NULL,NULL); } // '${'
     | RCUR { $$= createNode("RCUR","}",NULL,NULL); } // '}'
     | ID { $$= createNode("ID",$1,NULL,NULL); clearYylval();} // alphanumeric tokens
@@ -352,6 +388,11 @@ void cleanUp(){ // clean up the symbol table, file pointer and yylval at the end
     if(yyin){ // close file if opened
         fclose(yyin);
     }
+    for(int i=0;i<symbolCount;i++){ // free the temporary holder for ASTs
+        if(tempholder[i]!=NULL){
+            freeAST(tempholder[i]);
+        }
+    }
     clearYylval(); // clear yylval
 }
 
@@ -376,6 +417,13 @@ int main(int argc, char *argv[]) {
     else{ // if no file is provided, take input manually
         printf("Please provide an input:\n");
     }
+
+    out_c_file = fopen("rexec.c", "w");
+    if (!out_c_file) {
+        perror("Could not create rexec.c");
+        return 1;
+    }
+
     if(yyparse()==0){ // if regular expression is correct, parser will return 0, else 1
         Symbol *temp = unknownSymbol;
         while(temp!=NULL){ // verify that all unknown symbol table have been defined later on
@@ -390,11 +438,38 @@ int main(int argc, char *argv[]) {
         if(debugging){
             printSymbolTable(symbolTable);
         }
+    /*
+        fprintf(out_c_file,
+            "  return 0; // default reject (to be overwritten)\n"
+            "}\n\n"
+            "int main(int argc, char **argv) {\n"
+            "  if (argc != 2) {\n"
+            "    fprintf(stderr, \"Usage: %%s <input_file>\\n\", argv[0]);\n"
+            "    return 1;\n"
+            "  }\n"
+            "  FILE *f = fopen(argv[1], \"r\");\n"
+            "  if (!f) { perror(\"fopen\"); return 1; }\n"
+            "  fseek(f, 0, SEEK_END);\n"
+            "  long len = ftell(f);\n"
+            "  fseek(f, 0, SEEK_SET);\n"
+            "  char *buf = malloc(len + 1);\n"
+            "  fread(buf, 1, len, f);\n"
+            "  buf[len] = '\\0';\n"
+            "  fclose(f);\n"
+            "  if (match(buf)) printf(\"ACCEPTS\\n\");\n"
+            "  else printf(\"REJECTS\\n\");\n"
+            "  free(buf);\n"
+            "  return 0;\n"
+            "}\n"
+        ); */
+        fclose(out_c_file);
+
         cleanUp(); // clean up at the end
         exit(0);
     }
     else{
         printf("Exiting due to error.\n");
+        fclose(out_c_file);
         cleanUp(); // clean up at the end
         exit(1);
     }
