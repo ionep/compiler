@@ -25,7 +25,9 @@ extern FILE *yyin;
 
 FILE *out_c_file;
 
-extern State *all_states_head;
+#define MAX_SUBNFAS 100 // maximum number of sub NFAs
+extern State* startStates[MAX_SUBNFAS];
+extern int startCount; 
 
 //custom error message
 struct errorCode{
@@ -99,7 +101,9 @@ line: system {
             printAST($1,0); // print the AST
         }
         generateParseCode($1,out_c_file, symbolTable); // generate the parse code for the AST
-        freeStates(all_states_head);
+        for(int i=0; i<startCount; i++){
+            freeStates(startStates[i]); // free the states in the startStates array
+        } 
         if(!stop_free){
             freeAST($1); // free the AST
         }

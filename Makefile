@@ -17,6 +17,9 @@ rexec: rexec.c
 rexec.c: generate
 	./generate test.txt
 
+rexecmem:rexec.c
+	$(CLANG) $(CLANGFLAGS) rexec.c -o rexec
+
 # generate default parse target for running 
 parse: $(LEXER_DIR)/lex.yy.o $(PARSER_DIR)/parser.tab.o
 	$(CC) -o parse $(LEXER_DIR)/lex.yy.o $(PARSER_DIR)/parser.tab.o $(CFLAGS)
