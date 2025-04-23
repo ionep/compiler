@@ -26,8 +26,7 @@ extern FILE *yyin;
 FILE *out_c_file;
 
 #define MAX_SUBNFAS 100 // maximum number of sub NFAs
-extern State* startStates[MAX_SUBNFAS];
-extern int startCount; 
+State *existing_states[MAX_SUBNFAS*1024];
 
 //custom error message
 struct errorCode{
@@ -75,7 +74,7 @@ ASTNode *tempholder[1024];
 }
 // list of all available tokens from lexer and make them string to print while debugging
 %token <str> SLASH CONST_TOK EQUAL AMP NOT LPAR RPAR PLUS PIPE ASTRK ESC PERCENT
-%token <str> QUES UNICODE QUOTE LBIG RBIG CAP WILD LCUR RCUR MINUS OTHERCHAR 
+%token <str> QUES UNICODE QUOTE LBIG RBIG CAP WILD LCUR RCUR MINUS OTHERCHAR
 %token <str> ID;
 
 /* list of all non terminals used in the parser. Some might differ from the assignment as they have
@@ -101,9 +100,7 @@ line: system {
             printAST($1,0); // print the AST
         }
         generateParseCode($1,out_c_file, symbolTable); // generate the parse code for the AST
-        for(int i=0; i<startCount; i++){
-            freeStates(startStates[i]); // free the states in the startStates array
-        } 
+        freeStates(existing_states); // free the states in the startStates array
         if(!stop_free){
             freeAST($1); // free the AST
         }
@@ -442,30 +439,6 @@ int main(int argc, char *argv[]) {
         if(debugging){
             printSymbolTable(symbolTable);
         }
-    /*
-        fprintf(out_c_file,
-            "  return 0; // default reject (to be overwritten)\n"
-            "}\n\n"
-            "int main(int argc, char **argv) {\n"
-            "  if (argc != 2) {\n"
-            "    fprintf(stderr, \"Usage: %%s <input_file>\\n\", argv[0]);\n"
-            "    return 1;\n"
-            "  }\n"
-            "  FILE *f = fopen(argv[1], \"r\");\n"
-            "  if (!f) { perror(\"fopen\"); return 1; }\n"
-            "  fseek(f, 0, SEEK_END);\n"
-            "  long len = ftell(f);\n"
-            "  fseek(f, 0, SEEK_SET);\n"
-            "  char *buf = malloc(len + 1);\n"
-            "  fread(buf, 1, len, f);\n"
-            "  buf[len] = '\\0';\n"
-            "  fclose(f);\n"
-            "  if (match(buf)) printf(\"ACCEPTS\\n\");\n"
-            "  else printf(\"REJECTS\\n\");\n"
-            "  free(buf);\n"
-            "  return 0;\n"
-            "}\n"
-        ); */
         fclose(out_c_file);
 
         cleanUp(); // clean up at the end

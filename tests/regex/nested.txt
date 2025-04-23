@@ -1,0 +1,4 @@
+const NonZeroDigit = /[1-9]/
+const Digit = /${NonZeroDigit}/
+
+/"0" | ${Digit}+/

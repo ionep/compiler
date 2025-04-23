@@ -4,6 +4,8 @@ This project implements a regular expression compiler in flex and bison as a par
 given at the bottom. At the current version, it generates an abstract syntax tree and a symbol table. Also, it makes sure that there is no memory leaks by
 manually deallocating all memory.
 
+It generates a C file named "rexec.c" for a given regex which we can use to match string for that regex.
+
 
 ## 📝 How It Works
 - **Flex (`lexer/lexer.l`)** tokenizes the input characters.
@@ -16,9 +18,16 @@ manually deallocating all memory.
 - `lib/Symbol.h` - Custom Library for Symbol Table defining data structure and essential functions
 - `lib/lib.h` - Combined AST and Symbol
 - `parse` - Executable file
-- `tests/` - Include two files valid.txt and invalid.txt for testing
+- `tests/` - Include all test file, valid.txt and invalid.txt for regex validation for parse.
+- `tests/regex` - List of test regex txt file
+- `tests/strings` - List of strings for test regex (named as testregexname_stringname.txt)
+- `tests/groundtruth.txt` - Result for each strings in tests/strings. Format: regex.txt regex_string.txt ACCEPTS|REJECTS
+- `tests/test_results.txt` - Result after test with runtest.py
+- `tests/groundtruth.txt` - Comparison list for groundtruth and test_results
 - `Makefile` - Compilation automation
 - `test.txt` - Immediate test cases to use with run command 2
+- `ctest.txt` - Immediate test cases to use with run command 4
+- `runtest.py` - Run tests based on run command 5
 
 ## Requirements
 
@@ -37,6 +46,8 @@ manually deallocating all memory.
 - Valgrind - optional
 
         sudo apt install valgrind
+
+- Python - optional for testing
 
 ## ⚙️ Compilation
 
@@ -138,6 +149,9 @@ manually deallocating all memory.
         
         ./rexec ctest.txt
 
+5. *python runtest.py*
+
+    Store your tests in tests/regex and tests/strings (Example: regex/1.txt as a regex and strings/1_*.txt as its strings). All result will be compared with groundtruth.txt and saved in tests/test_results.txt & tests/comparison.txt.
 
 ## Grammar
 

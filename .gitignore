@@ -8,6 +8,6 @@ parser/*.o
 parse
 generate
 rexec.c
-rexec
+rexec*
 
 .vscode

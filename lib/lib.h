@@ -173,6 +173,7 @@ struct State {
     int id;
     int is_accept;
     Transition* transitions;
+    ASTNode* node; 
     State* pair; // end and start state pair
     State* next; 
 };
@@ -188,6 +189,9 @@ int startCount = 0;
 // State* all_states_tail = NULL;
 State* all_states = NULL; // pointer to the first state
 int state_id = 0;
+
+State *existing_states[MAX_SUBNFAS*1024];
+int noOfLiveStates = 0;
 
 //for range states and transitions
 int unicode = 0;
@@ -210,16 +214,14 @@ void freeTransitions(Transition *t) {
 }
 
 
-void freeStates(State *head) {
-    if (head == NULL)
-        return;
-
-    // printf("Freeing AST:%s %s\n",node->type,node->value);
-    
-    freeStates(head->next); // recursively free left subnode
-    freeTransitions(head->transitions); // recursively free right subnode
-    free(head); // free the node
-    head=NULL; // make sure to keep the node NULL to avoid dangling pointers
+void freeStates(State *e[]) {
+    for(int i = 0; i < noOfLiveStates; i++) {
+        if(e[i] != NULL) { // free state if not NULL
+            freeTransitions(e[i]->transitions); // free transitions of the state
+            free(e[i]); // free the state
+            e[i]=NULL; // make sure to keep the state NULL to avoid dangling pointers
+        }
+    }
 }
 
 State* createState(int is_accept) {
@@ -227,6 +229,7 @@ State* createState(int is_accept) {
     s->id = state_id++;
     s->is_accept = is_accept;
     s->transitions = NULL;
+    noOfLiveStates++;
     s->next = all_states; 
     all_states = s; // set the current state to the new state
     return s;
@@ -252,16 +255,17 @@ void addTransitionWithType(State* from, char *match, int type, State* to) {
     from->transitions = t;
 }
 
-char addRangeTransitions(ASTNode* node, State* start, State* end, int is_negated) {
+char addRangeTransitions(ASTNode* node, State* start, State* end) {
     if (!node) return '\0'; 
 
     if (strcmp(node->type, "RANGE_VAL") == 0){
         if(strcmp(node->left->type,"RANGE_VAL") == 0) { // if there is more range values
         
-            char low = addRangeTransitions(node->left, start, end,is_negated); // recursively add transitions for the left side of the range
+            char low = addRangeTransitions(node->left, start, end); // recursively add transitions for the left side of the range
+
             
             if(low != '\0'){
-                if(low == ' '){ // if unicode range is consumed
+                if(low == '\n'){ // if unicode range is consumed
                     minusEncountered = 0;
                     if(strcmp(node->right->type,"UNICODE")==0){
                         long hi;
@@ -282,28 +286,49 @@ char addRangeTransitions(ASTNode* node, State* start, State* end, int is_negated
                         minusEncountered=1;
                         return low;
                     }
-                    char buf[12];
-                    sprintf(buf, "%d", (int)low); // convert low to string
-                    addTransitionWithType(start, buf, TYPE_UNICODE, end);
-                    if(strcmp(node->right->type,"UNICODE")==0){
-                        long hi;
-                        unicode = 1;
-                        sscanf(node->right->value, "%%x%lx;", &hi);
-                        return (char)(int)hi;
+                    if(unicode){
+                        unicode=0;
+                        char buf[12];
+                        sprintf(buf, "%d", (int)low); // convert low to string
+                        addTransitionWithType(start, buf, TYPE_UNICODE, end);
+                        if(strcmp(node->right->type,"UNICODE")==0){
+                            long hi;
+                            unicode = 1;
+                            sscanf(node->right->value, "%%x%lx;", &hi);
+                            return (char)(int)hi;
+                        }
+                        else{
+                            for (int i=0; i < strlen(node->right->value)-1; ++i) { // add all transitions but the last
+                                char c = node->right->value[i];
+                                char buf[2] = { c, '\0' };
+                                addTransition(start, buf, end);
+                            }
+                            return node->right->value[strlen(node->right->value) - 1]; // last character of right value
+                        }   
                     }
                     else{
-                        for (int i=0; i < strlen(node->right->value)-1; ++i) { // add all transitions but the last
-                            char c = node->right->value[i];
-                            char buf[2] = { c, '\0' };
-                            addTransition(start, buf, end);
+                        char buf[2]={low, '\0'};
+                        addTransition(start, buf, end);
+                        if(strcmp(node->right->type,"UNICODE")==0){
+                            long hi;
+                            unicode = 1;
+                            sscanf(node->right->value, "%%x%lx;", &hi);
+                            return (char)(int)hi;
                         }
-                        return node->right->value[strlen(node->right->value) - 1]; // last character of right value
+                        else{
+                            for (int i=0; i < strlen(node->right->value)-1; ++i) { // add all transitions but the last
+                                char c = node->right->value[i];
+                                char buf[2] = { c, '\0' };
+                                addTransition(start, buf, end);
+                            }
+                            return node->right->value[strlen(node->right->value) - 1]; // last character of right value
+                        }
                     }
                 }
                 minusEncountered=0;
-                if(!unicode){
+                if(!unicode && strcmp(node->right->type,"UNICODE")!=0){
                     char hi = node->right->value[0];
-                    for (char c = low; c <= hi && low!=' '; ++c) { //define range of transitions
+                    for (char c = low; c <= hi && low!='\n'; ++c) { //define range of transitions
                         char buf[2] = { c, '\0' };
                         addTransition(start, buf, end);
                     }
@@ -316,33 +341,35 @@ char addRangeTransitions(ASTNode* node, State* start, State* end, int is_negated
                 }
                 else{
                     long hi;
-                    if(strcmp(node->right->type,"UNICODE")==0){
-                        sscanf(node->right->value, "%%x%lx;", &hi);
-                    }
-                    else{
-                        hi = (int)node->right->value[0];
-                    }
                     int l = (int) low;
-                    for (int i = l; i <= hi; ++i) { //define range of transitions
-                        char buf[12];
-                        sprintf(buf, "%d", (int)i); // convert i to string
-                        addTransitionWithType(start, buf, TYPE_UNICODE, end); // add transition to the start state
-                    }
                     unicode=0;
                     minusEncountered = 0;
                     if(strcmp(node->right->type,"UNICODE")==0){
-                        return ' ';
+                        sscanf(node->right->value, "%%x%lx;", &hi);
+                        for (int i = l; i <= hi; ++i) { //define range of transitions
+                            char buf[12];
+                            sprintf(buf, "%d", (int)i); // convert i to string
+                            addTransitionWithType(start, buf, TYPE_UNICODE, end); // add transition to the start state
+                        }
+                        return '\n';
                     }
                     else{
-                        for (int i=1; i < strlen(node->right->value)-1; ++i) { // add all transitions but the last
+                        hi = (int)node->right->value[0];
+                        for (int i = l; i <= hi; ++i) { //define range of transitions
+                            char buf[12];
+                            sprintf(buf, "%d", (int)i); // convert i to string
+                            addTransitionWithType(start, buf, TYPE_UNICODE, end); // add transition to the start state
+                        }
+                        for (int i=1; i < strlen(node->right->value)-1; ++i) { // add all transitions but the last (done as unicode as can be any characters)
                             char c = node->right->value[i];
-                            char buf[2] = { c, '\0' };
-                            addTransition(start, buf, end);
+                            char buf[12];
+                            sprintf(buf, "%d", (int)i); // convert i to string
+                            addTransitionWithType(start, buf, TYPE_UNICODE, end);
                         }
                         if(strlen(node->right->value)>1)
                             return node->right->value[strlen(node->right->value) - 1]; // last character of right value
                         else
-                            return ' ';
+                            return '\n';
                     }
                 }
             }
@@ -355,7 +382,7 @@ char addRangeTransitions(ASTNode* node, State* start, State* end, int is_negated
                     addTransitionWithType(start, buf, TYPE_UNICODE, end);
                 }
                 else{
-                    for (int i=0; i < strlen(node->right->value)-1; ++i) { // add all transitions but the last
+                    for (int i=0; i < strlen(node->right->value); ++i) { // add all transitions but the last#FIXME
                         char c = node->right->value[i];
                         char buf[2] = { c, '\0' };
                         addTransition(start, buf, end);
@@ -367,7 +394,6 @@ char addRangeTransitions(ASTNode* node, State* start, State* end, int is_negated
         else if(strcmp(node->left->type,"UNICODE")==0){
             unicode = 1;
             if(strcmp(node->right->type,"MINUS") == 0){
-                addTransition(start, "-", end);
                 long left;
                 sscanf(node->left->value, "%%x%lx;", &left);
                 minusEncountered = 1;
@@ -388,7 +414,7 @@ char addRangeTransitions(ASTNode* node, State* start, State* end, int is_negated
                 }
                 
                 else{
-                    for (int i=0; i < strlen(node->right->value)-1; ++i) { // add all transitions but the last
+                    for (int i=0; i < strlen(node->right->value); ++i) { 
                         char c = node->right->value[i];
                         char buf[2] = { c, '\0' };
                         addTransition(start, buf, end);
@@ -404,7 +430,6 @@ char addRangeTransitions(ASTNode* node, State* start, State* end, int is_negated
                 addTransition(start, buf, end);
             }
             if(strcmp(node->right->type,"MINUS") == 0){
-                addTransition(start, "-", end);
                 minusEncountered = 1;
                 return node->left->value[strlen(node->left->value) - 1]; // last character of left value
             }
@@ -422,15 +447,18 @@ char addRangeTransitions(ASTNode* node, State* start, State* end, int is_negated
             sscanf(node->value, "%%x%lx;", &i);
             char buf[12];
             sprintf(buf, "%d", (int)i); // convert i to string
-            addTransitionWithType(start, buf, TYPE_UNICODE, end);
+            unicode = 1;
+            return (char)(int)i; // return the unicode value
+            // addTransitionWithType(start, buf, TYPE_UNICODE, end);
         }
-        
         else{
-            for (int i=0; i < strlen(node->value); ++i) { // add all transitions but the last
+            unicode = 0;
+            for (int i=0; i < strlen(node->value)-1; ++i) { 
                 char c = node->value[i];
                 char buf[2] = { c, '\0' };
                 addTransition(start, buf, end);
             }
+            return node->value[strlen(node->value) - 1]; // last character of left value
         }
         return '\0';
     }
@@ -457,11 +485,34 @@ State* generateStates(ASTNode* node, Symbol *symbolTable) {
     }
     // 2) Sequence: SEQ ← left · right
     else if (strcmp(node->type, "SEQ") == 0) {
+        //special case with wildcard repeat issue
+        
         State* L = generateStates(node->left,symbolTable);
         State* R = generateStates(node->right,symbolTable);
         addTransition(start,    NULL, L);
         addTransition(L->pair,  NULL, R);
         addTransition(R->pair,  NULL, end);
+        /*
+        if(L->node){
+            if(strcmp(L->node->type,"REPEAT")==0){
+                if(strcmp(L->node->left->type,"WILD")==0){
+                    char buf[20]={'\0'};
+                    State *temp = R;
+                    while(strlen(buf)==0){
+                        for(Transition *t = temp->transitions; t; t = t->next) {
+                            if(t->match != NULL){
+                                printf("Matched: %s\n",t->match);
+                                strcpy(buf,t->match);
+                            }
+                            temp=t->to;
+                        }
+                    }
+                    printf("buf:%s\n",buf);
+                    addTransition(L->transitions->next->to->pair, buf, end); // add transition from L->pair to end
+                }
+            }
+        }
+        */
         return start;
     }
     // 3) Repetition: REPEAT ← child  with operator in node->value (“*”, “+”, or “?”)
@@ -484,6 +535,7 @@ State* generateStates(ASTNode* node, Symbol *symbolTable) {
             addTransition(start,    NULL, end);
             addTransition(F->pair,  NULL, end);
         }
+        start->node = node;
         return start;
     }
     // 4) Parentheses: PAREN ← ( child )
@@ -501,12 +553,21 @@ State* generateStates(ASTNode* node, Symbol *symbolTable) {
         //     char buf[2] = { c, '\0' };
         //     addTransition(start, buf, end); // add transition for the last character
         // }
-        addRangeTransitions(node->left, start, end,0); // add range transitions
+        char c =addRangeTransitions(node->left, start, end); // add range transitions
+        if (c != '\0' && c != '\n') {
+            char buf[2] = { c, '\0' };
+            addTransition(start, buf, end); // add transition for the last character
+        }
+        if(minusEncountered){
+            addTransition(start, "-", end); // add transition for the last character
+            minusEncountered=0;
+        }
+        unicode=0;
         return start;
     }
     else if (strcmp(node->type, "NEGRANGE") == 0) {
         State *sink = createState(0);
-        addRangeTransitions(node->left, start, sink,0);
+        addRangeTransitions(node->left, start, sink);
         addTransitionWithType(start, ".", TYPE_WILDCARD, end);
         // addRangeTransitions(node->left, start, end,1);
         return start;
@@ -529,6 +590,7 @@ State* generateStates(ASTNode* node, Symbol *symbolTable) {
     // 8) Wildcard: WILD ← “.”
     else if (strcmp(node->type, "WILD") == 0) {
         addTransitionWithType(start, ".",TYPE_WILDCARD, end);
+        start->node = node;
         return start;
     }
     else if(strcmp(node->type, "LITERAL") == 0) {
@@ -586,6 +648,42 @@ State* generateStates(ASTNode* node, Symbol *symbolTable) {
     return start;
 }
 
+void reorderWildcards() {
+    for (State *s = all_states; s; s = s->next) {
+        Transition *wildHead = NULL, *wildTail = NULL;
+        Transition *otherHead = NULL, *otherTail = NULL;
+
+        // Split into two lists, preserving the original relative order
+        for (Transition *t = s->transitions; t; t = t->next) {
+            if (t->type == TYPE_WILDCARD) {
+                if (!wildHead) wildHead = wildTail = t;
+                else {
+                    wildTail->next = t;
+                    wildTail = t;
+                }
+            } else {
+                if (!otherHead) otherHead = otherTail = t;
+                else {
+                    otherTail->next = t;
+                    otherTail = t;
+                }
+            }
+        }
+
+        // Terminate both lists
+        if (wildTail)   wildTail->next   = NULL;
+        if (otherTail) otherTail->next = NULL;
+
+        // Rebuild s->transitions as: [wildcards] ++ [others]
+        if (wildHead) {
+            s->transitions = wildHead;
+            wildTail->next = otherHead;
+        } else {
+            s->transitions = otherHead;
+        }
+    }
+}
+
 void headerCode(FILE *file); // forward declaration
 
 void generateParseCode(ASTNode *node, FILE *file, Symbol *symbolTable) {
@@ -595,6 +693,7 @@ void generateParseCode(ASTNode *node, FILE *file, Symbol *symbolTable) {
         startStates[startCount++] = start; // add the start state to the list of start states
         start->pair->is_accept = 1; // set the end state as accept state
     }
+    // reorderWildcards(); // reorder the wildcards in the state machine
     headerCode(file); 
 }
 
@@ -770,8 +869,9 @@ void headerCode(FILE *file) {
 
     fprintf(file,
         "int main(int argc, char **argv) {\n"
+        "    if (argc < 2) { fprintf(stderr, \"Usage: %%s <file>\\n\", argv[0]); return 1; }\n"
         "    setup();\n"
-        "    FILE *f = fopen(\"ctest.txt\", \"r\"); if (!f) { perror(\"fopen\"); return 1; }\n"
+        "    FILE *f = fopen(argv[1], \"r\"); if (!f) { perror(\"fopen\"); return 1; }\n"
         "    fseek(f, 0, SEEK_END); long len = ftell(f);\n"
         "    fseek(f, 0, SEEK_SET);\n"
         "    char *buf = malloc(len + 1);\n"
