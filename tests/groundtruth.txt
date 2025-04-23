@@ -53,6 +53,16 @@
 8.txt 8_3.txt ACCEPTS
 8.txt 8_4.txt ACCEPTS
 8.txt 8_5.txt REJECTS
+9.txt 9_1.txt ACCEPTS
+9.txt 9_2.txt REJECTS
+9.txt 9_3.txt REJECTS
+9.txt 9_4.txt REJECTS
+9.txt 9_5.txt ACCEPTS
+9.txt 9_6.txt REJECTS
+9.txt 9_7.txt ACCEPTS
+9.txt 9_8.txt REJECTS
+9.txt 9_9.txt REJECTS
+9.txt 9_10.txt REJECTS
 10.txt 10_1.txt REJECTS
 10.txt 10_2.txt REJECTS
 10.txt 10_3.txt ACCEPTS

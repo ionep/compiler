@@ -164,7 +164,6 @@ enum TYPE{ // define the types of transitions
 struct Transition {
     char* match; // NULL = epsilon
     int type; // 0 = default, 1 = wildcard, 2 = unicode
-    int is_reject;
     State* to;
     Transition* next; // linked list of transitions
 };
@@ -240,9 +239,16 @@ void addTransition(State* from, char *match, State* to) {
     t->match = (match!=NULL) ? strdup(match) : NULL; // copy the match string
     t->to = to;
     t->type= TYPE_DEFAULT;
-    t->is_reject = 0;
     t->next = from->transitions;
     from->transitions = t;
+}
+
+void addTransitionReverse(State* from, char *match, State* to) {
+    Transition* t = (Transition *)malloc(sizeof(Transition));
+    t->match = (match!=NULL) ? strdup(match) : NULL; // copy the match string
+    t->to = to;
+    t->type= TYPE_DEFAULT;
+    from->transitions->next = t;
 }
 
 void addTransitionWithType(State* from, char *match, int type, State* to) {
@@ -250,7 +256,6 @@ void addTransitionWithType(State* from, char *match, int type, State* to) {
     t->match = (match!=NULL) ? strdup(match) : NULL; // copy the match string
     t->to = to;
     t->type=type; 
-    t->is_reject = 0;
     t->next = from->transitions;
     from->transitions = t;
 }
@@ -464,6 +469,47 @@ char addRangeTransitions(ASTNode* node, State* start, State* end) {
     }
 }
 
+Transition* repeatFound= NULL;
+char repeatFoundChar = '\0'; // to store the character of the repeat found
+State *topSeq = NULL;
+
+void addSequenceTransitions(ASTNode* node, State *start, State *end, State *L, State *R) {
+    if(!node) return;
+
+    if(strcmp(node->type,"SEQ")==0){
+        if(strcmp(node->left->type,"REPEAT")==0){
+            if(strcmp(node->left->left->type,"WILD")==0){
+                char buf[20]={'\0'};
+                State *temp = R;
+                for(Transition *t = temp->transitions; t; t = t->next) {
+                    if(t->match){
+                        // printf("Matched: %s\n",t->match);
+                        strcpy(buf,t->match);
+                        break;
+                    }
+                }
+                // printf("buf:%s\n",buf);
+                
+                if(node->left->value[0] == '*'){
+                    addTransition(L->transitions->next->to->pair, buf, R->pair); // add transition from L->pair to end
+                    addTransitionReverse(L->transitions->next->to, buf, R->pair); // add transition from L->pair to end
+                }
+                else if(node->left->value[0] == '+'){
+                    addTransition(L->transitions->to->pair, buf, R->pair); // add transition from L->pair to end
+                }
+            }
+        }
+        else{ // when repeat is in right or deeply rooted inside in right
+            if(strcmp(node->right->type,"REPEAT")==0){
+                if(strcmp(node->right->left->type,"WILD")==0){
+                    repeatFound = R->transitions; // return the pointer to wild so that we set it in outer SEQ
+                    repeatFoundChar = node->right->value[0]; // store the repeat character
+                }
+            }
+        }
+    }
+}
+
 State* generateStates(ASTNode* node, Symbol *symbolTable) {
     if (node == NULL) return NULL;
 
@@ -486,33 +532,29 @@ State* generateStates(ASTNode* node, Symbol *symbolTable) {
     // 2) Sequence: SEQ ← left · right
     else if (strcmp(node->type, "SEQ") == 0) {
         //special case with wildcard repeat issue
-        
+        if(!topSeq) {
+            topSeq = start; // set the top sequence state
+        }
         State* L = generateStates(node->left,symbolTable);
         State* R = generateStates(node->right,symbolTable);
         addTransition(start,    NULL, L);
         addTransition(L->pair,  NULL, R);
         addTransition(R->pair,  NULL, end);
-        /*
-        if(L->node){
-            if(strcmp(L->node->type,"REPEAT")==0){
-                if(strcmp(L->node->left->type,"WILD")==0){
-                    char buf[20]={'\0'};
-                    State *temp = R;
-                    while(strlen(buf)==0){
-                        for(Transition *t = temp->transitions; t; t = t->next) {
-                            if(t->match != NULL){
-                                printf("Matched: %s\n",t->match);
-                                strcpy(buf,t->match);
-                            }
-                            temp=t->to;
-                        }
-                    }
-                    printf("buf:%s\n",buf);
-                    addTransition(L->transitions->next->to->pair, buf, end); // add transition from L->pair to end
-                }
+        start->node = node;
+
+        addSequenceTransitions(node, start, end,L,R); 
+        if(repeatFound != NULL && topSeq == start){ // i.e. if in some inner SEQ, repeat>wild was found
+            topSeq = NULL; // reset the top sequence state
+            if(repeatFoundChar == '*'){
+                addTransition(repeatFound->next->to->pair, node->right->value, R->pair); 
+                addTransitionReverse(repeatFound->next->to, node->right->value, R->pair); 
             }
+            else if(repeatFoundChar == '+'){
+                addTransition(repeatFound->to->pair, node->right->value, R->pair); 
+            }
+            repeatFound = NULL; // reset the repeat found pointer
+            repeatFoundChar = '\0'; // reset the repeat found character
         }
-        */
         return start;
     }
     // 3) Repetition: REPEAT ← child  with operator in node->value (“*”, “+”, or “?”)
@@ -547,12 +589,6 @@ State* generateStates(ASTNode* node, Symbol *symbolTable) {
     }
      // 5) Character class: RANGE ← [ ... ]
     else if (strcmp(node->type, "RANGE") == 0) {
-        // node->left is the multiregterm subtree
-        // char c = addRangeTransitions(node->left, start, end);
-        // if (c != '\0') {
-        //     char buf[2] = { c, '\0' };
-        //     addTransition(start, buf, end); // add transition for the last character
-        // }
         char c =addRangeTransitions(node->left, start, end); // add range transitions
         if (c != '\0' && c != '\n') {
             char buf[2] = { c, '\0' };
