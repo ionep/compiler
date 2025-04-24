@@ -427,6 +427,7 @@ int main(int argc, char *argv[]) {
     }
     else{ // if no file is provided, take input manually
         printf("Please provide an input:\n");
+        return 1;
     }
     if(strlen(out_path)>0){
         out_c_file = fopen(out_path, "w");

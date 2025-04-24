@@ -117,7 +117,7 @@ It generates a C file named "rexec.c" for a given regex which we can use to matc
 **Commands**
 
 
-1. *./generate*
+1. *./parse* -- No longer valid. Refer 2
 
     Runs the parser and takes input from the user
 
