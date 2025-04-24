@@ -62,7 +62,7 @@ def main():
                 continue
 
             # 2) compile
-            code, out, err = run(["gcc", "rexec.c", "-o", str(binary)])
+            code, out, err = run(["gcc", str(regex_dir/"rexec.c"), "-o", str(regex_dir/str(binary))])
             if code != 0:
                 actual = "COMPILE_ERROR"
                 fout.write(f"{rx.name} -- {actual} -- {err or out}\n")

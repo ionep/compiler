@@ -49,7 +49,7 @@ $(PARSER_DIR)/parser.tab.c $(PARSER_DIR)/parser.tab.h: $(PARSER_DIR)/parser.y $(
 # clean up the generated files
 clean:
 	rm -f $(LEXER_DIR)/lex.yy.c $(PARSER_DIR)/parser.tab.c $(PARSER_DIR)/parser.tab.h $(PARSER_DIR)/*.o $(PARSER_DIR)/*.output $(LEXER_DIR)/*.o parse
-	rm -f generate rexec.c rexec*
+	rm -f generate rexec.c rexec* tests/regex/rexec tests/regex/rexec.c
 
 # run the parser with the test file
 # test:

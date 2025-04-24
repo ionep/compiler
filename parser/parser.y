@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libgen.h>
 
 // #ifndef SYMBOL_H
 // #define SYMBOL_H
@@ -407,6 +408,7 @@ int main(int argc, char *argv[]) {
             printf("Invalid debugging argument (1 or 0). Setting to 0 instead\n");
         }
     }
+    char out_path[200];
     if (argc >= 2) { // second argument is filepath 
         //open file if specified
         yyin = fopen(argv[1], "r");
@@ -414,12 +416,24 @@ int main(int argc, char *argv[]) {
             printf("Error opening file\n");
             exit(1);
         }
+        char *input_copy = strdup(argv[1]);
+        char *dir = dirname(input_copy);  
+        int n = snprintf(out_path, sizeof(out_path), "%s/rexec.c", dir);
+        if (n < 0 || n >= (int)sizeof(out_path)) {
+            fprintf(stderr, "Path too long for rexec.c. Creating in root\n");
+            free(input_copy);
+        }
+        free(input_copy);
     }
     else{ // if no file is provided, take input manually
         printf("Please provide an input:\n");
     }
-
-    out_c_file = fopen("rexec.c", "w");
+    if(strlen(out_path)>0){
+        out_c_file = fopen(out_path, "w");
+    }
+    else{
+        out_c_file = fopen("rexec.c", "w");
+    }
     if (!out_c_file) {
         perror("Could not create rexec.c");
         return 1;

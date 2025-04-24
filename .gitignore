@@ -10,4 +10,6 @@ generate
 rexec.c
 rexec*
 
+tests/regex/rexec*
+
 .vscode
